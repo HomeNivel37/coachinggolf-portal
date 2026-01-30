@@ -11,17 +11,11 @@ import drive_storage as ds
 
 st.set_page_config(page_title="CoachingGolf Portal", layout="wide")
 
-# require_login() # desactiver temporairement
+require_login()
 
 roster = load_roster("roster.json")
-# drive_root = st.secrets["app"]["drive_root_folder_id"]
-# base_filename = st.secrets["app"].get("base_filename","Base_Coaching_Golf.xlsx")
-
-# --- TEMP MODE SANS AUTH ---
-if "role" not in st.session_state:
-    st.session_state.role = "coach"
-    st.session_state.user = "coach"
-#-----------------------------    
+drive_root = st.secrets["app"]["drive_root_folder_id"]
+base_filename = st.secrets["app"].get("base_filename","Base_Coaching_Golf.xlsx")
 
 role = st.session_state.role
 user = st.session_state.user
@@ -117,8 +111,7 @@ def show_admin():
         df = pd.read_csv(uf)
         csv_dfs.append(df)
         raw_names.append(detect_player_name(df, uf.name))
-        session_dates.append(session_date_from_csv(df, upload_file.name))
-        # --- was session_dates.append(session_date_from_csv(df) ----#
+        session_dates.append(session_date_from_csv(df))
 
     # Validate session date consistency
     uniq = sorted(set(session_dates))
