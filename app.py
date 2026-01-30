@@ -117,7 +117,8 @@ def show_admin():
         df = pd.read_csv(uf)
         csv_dfs.append(df)
         raw_names.append(detect_player_name(df, uf.name))
-        session_dates.append(session_date_from_csv(df))
+        session_dates.append(session_date_from_csv(df, upload_file.name))
+        # --- was session_dates.append(session_date_from_csv(df) ----#
 
     # Validate session date consistency
     uniq = sorted(set(session_dates))
