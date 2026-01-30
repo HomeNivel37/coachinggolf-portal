@@ -17,6 +17,12 @@ roster = load_roster("roster.json")
 # drive_root = st.secrets["app"]["drive_root_folder_id"]
 # base_filename = st.secrets["app"].get("base_filename","Base_Coaching_Golf.xlsx")
 
+# --- TEMP MODE SANS AUTH ---
+if "role" not in st.session_state:
+    st.session_state.role = "coach"
+    st.session_state.user = "coach"
+#-----------------------------    
+
 role = st.session_state.role
 user = st.session_state.user
 
