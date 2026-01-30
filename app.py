@@ -11,11 +11,11 @@ import drive_storage as ds
 
 st.set_page_config(page_title="CoachingGolf Portal", layout="wide")
 
-require_login()
+# require_login() # desactiver temporairement
 
 roster = load_roster("roster.json")
-drive_root = st.secrets["app"]["drive_root_folder_id"]
-base_filename = st.secrets["app"].get("base_filename","Base_Coaching_Golf.xlsx")
+# drive_root = st.secrets["app"]["drive_root_folder_id"]
+# base_filename = st.secrets["app"].get("base_filename","Base_Coaching_Golf.xlsx")
 
 role = st.session_state.role
 user = st.session_state.user
