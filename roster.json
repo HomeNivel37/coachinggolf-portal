@@ -1,28 +1,16 @@
 {
   "players": {
-    "LICORNEKEEPER": {
+    "conre": {
+      "alias": "Sportsman",
+      "hand": "R"
+    },
+    "licornekeeper": {
       "alias": "Licornekeeper",
-      "hand": "right"
+      "hand": "R"
     },
-    "CONRE": {
-      "alias": "Sportsman",
-      "hand": "right"
-    },
-    "SPORTSMAN": {
-      "alias": "Sportsman",
-      "hand": "right"
-    },
-    "TREVE": {
+    "treve": {
       "alias": "Cyberman",
-      "hand": "left"
-    },
-    "TRÊVE": {
-      "alias": "Cyberman",
-      "hand": "left"
-    },
-    "CYBERMAN": {
-      "alias": "Cyberman",
-      "hand": "left"
+      "hand": "L"
     }
   }
 }
