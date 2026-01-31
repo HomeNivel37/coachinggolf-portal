@@ -11,6 +11,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 
 from models.modelA_gold import build_modelA_gold
+from models.modelB_gold import build_modelB_gold
 
 from ingest import detect_player_name
 from roster import to_alias, hand_of
@@ -305,6 +306,13 @@ def generate_all(csv_dfs: List[pd.DataFrame], roster: Dict[str, Any], session_da
                     except Exception as e:
                         # fallback to simple pdf with the error
                         _simple_pdf(str(p), f"Model A — {alias}", lines + [f"ERREUR ModelA: {e}"])
+                elif letter == "B":
+                    # Model B (GOLD) driver-only
+                    try:
+                        build_modelB_gold(shots, alias=alias, hand=(g["Hand"].iloc[0] if "Hand" in g.columns and len(g) else "R"),
+                                          session_date=session_date, out_pdf=str(p))
+                    except Exception as e:
+                        _simple_pdf(str(p), f"Model B — {alias}", lines + [f"ERREUR ModelB: {e}"])
                 else:
                     _simple_pdf(str(p), f"Model {letter} — {alias}", lines)
                 student_pdfs[alias].append(str(p))
