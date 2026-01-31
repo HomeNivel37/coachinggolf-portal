@@ -1,44 +1,71 @@
 from __future__ import annotations
 import io
-from typing import Optional, Iterable
-import streamlit as st
-from google.oauth2 import service_account
+import os
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseUpload, MediaIoBaseDownload
+from googleapiclient.http import MediaIoBaseUpload
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
 
-SCOPES = ["https://www.googleapis.com/auth/drive"]
+SCOPES = ["https://www.googleapis.com/auth/drive.file"]
 
-def _client():
-    info = dict(st.secrets["google_service_account"])
-    creds = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
+def get_drive_service():
+    creds = None
+    if os.path.exists("token.json"):
+        creds = Credentials.from_authorized_user_file("token.json", SCOPES)
+
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file("credentials.json", SCOPES)
+            creds = flow.run_local_server(port=0)
+        with open("token.json", "w", encoding="utf-8") as f:
+            f.write(creds.to_json())
+
     return build("drive", "v3", credentials=creds)
 
-def ensure_folder(service, parent_id: str, name: str) -> str:
-    q = f"mimeType='application/vnd.google-apps.folder' and name='{name}' and '{parent_id}' in parents and trashed=false"
-    res = service.files().list(q=q, fields="files(id,name)").execute()
+def _client():
+    return get_drive_service()
+
+FOLDER_MIME = "application/vnd.google-apps.folder"
+
+def ensure_folder(service, parent_id: str, folder_name: str) -> str:
+    q = (
+        f"mimeType='{FOLDER_MIME}' and "
+        f"name='{folder_name}' and "
+        f"'{parent_id}' in parents and trashed=false"
+    )
+    res = service.files().list(q=q, spaces="drive", fields="files(id,name)", pageSize=10).execute()
     files = res.get("files", [])
     if files:
         return files[0]["id"]
-    meta = {"name": name, "mimeType":"application/vnd.google-apps.folder", "parents":[parent_id]}
-    f = service.files().create(body=meta, fields="id").execute()
-    return f["id"]
 
-def upload_bytes(parent_id: str, filename: str, data: bytes, mime: str) -> str:
-    service = _client()
-    media = MediaIoBaseUpload(io.BytesIO(data), mimetype=mime, resumable=False)
-    meta = {"name": filename, "parents":[parent_id]}
-    f = service.files().create(body=meta, media_body=media, fields="id, webViewLink").execute()
-    return f["id"]
+    meta = {"name": folder_name, "mimeType": FOLDER_MIME, "parents": [parent_id]}
+    created = service.files().create(body=meta, fields="id").execute()
+    return created["id"]
 
-def upload_file(parent_id: str, filepath: str, filename: Optional[str]=None, mime: str="application/octet-stream") -> str:
-    with open(filepath, "rb") as f:
-        return upload_bytes(parent_id, filename or filepath.split("/")[-1], f.read(), mime)
+def list_children(parent_id: str):
+    service = get_drive_service()
+    res = service.files().list(
+        q=f"'{parent_id}' in parents and trashed=false",
+        spaces="drive",
+        fields="files(id,name,mimeType,webViewLink)",
+        pageSize=1000,
+    ).execute()
+    return res.get("files", [])
 
-def list_children(parent_id: str, mime_prefix: Optional[str]=None):
-    service = _client()
-    q = f"'{parent_id}' in parents and trashed=false"
-    res = service.files().list(q=q, fields="files(id,name,mimeType,modifiedTime,webViewLink)").execute()
-    files = res.get("files", [])
-    if mime_prefix:
-        files = [x for x in files if x["mimeType"].startswith(mime_prefix)]
-    return files
+def upload_bytes(parent_id: str, filename: str, content: bytes, mime: str):
+    service = get_drive_service()
+    media = MediaIoBaseUpload(io.BytesIO(content), mimetype=mime, resumable=False)
+    meta = {"name": filename, "parents": [parent_id]}
+    return service.files().create(body=meta, media_body=media, fields="id,webViewLink").execute()
+
+def upload_file(parent_id: str, content, filename: str, mime: str):
+    if isinstance(content, str) and os.path.exists(content):
+        with open(content, "rb") as f:
+            data = f.read()
+        return upload_bytes(parent_id, filename, data, mime)
+    if isinstance(content, (bytes, bytearray)):
+        return upload_bytes(parent_id, filename, bytes(content), mime)
+    raise TypeError(f"Unsupported content type: {type(content)}")

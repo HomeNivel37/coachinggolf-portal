@@ -4,7 +4,7 @@ import json
 import tempfile
 from pathlib import Path
 from auth import require_login, logout_button
-from roster import load_roster, to_alias, hand_of
+from roster import load_roster, to_alias, hand_of, normalize_roster
 from ingest import session_date_from_csv, detect_player_name
 import generator
 import drive_storage as ds
@@ -13,7 +13,7 @@ st.set_page_config(page_title="CoachingGolf Portal", layout="wide")
 
 require_login()
 
-roster = load_roster("roster.json")
+roster = normalize_roster(load_roster("roster.json"))
 drive_root = st.secrets["app"]["drive_root_folder_id"]
 base_filename = st.secrets["app"].get("base_filename","Base_Coaching_Golf.xlsx")
 
@@ -26,7 +26,7 @@ with st.sidebar:
     logout_button()
 
 def drive_paths_for_session(session_date: str, alias: str|None=None):
-    service = ds._client()
+    service = ds.get_drive_service()
     base_id = ds.ensure_folder(service, drive_root, "Base")
     uploads_id = ds.ensure_folder(service, drive_root, "Uploads")
     eleves_id = ds.ensure_folder(service, drive_root, "Eleves")
@@ -43,7 +43,7 @@ def drive_paths_for_session(session_date: str, alias: str|None=None):
     return {"Base":base_id,"Uploads":up_sess,"Groupe":grp_sess,"Eleve":stu_sess}
 
 def list_sessions_for_alias(alias: str):
-    service = ds._client()
+    service = ds.get_drive_service()
     eleves_id = ds.ensure_folder(service, drive_root, "Eleves")
     stu_id = ds.ensure_folder(service, eleves_id, alias)
     files = ds.list_children(stu_id)
@@ -64,7 +64,7 @@ def show_student(alias: str):
         st.info("Aucune session disponible.")
         return
     sess = st.selectbox("Session", sessions)
-    service = ds._client()
+    service = ds.get_drive_service()
     eleves_id = ds.ensure_folder(service, drive_root, "Eleves")
     stu_id = ds.ensure_folder(service, eleves_id, alias)
     sess_id = ds.ensure_folder(service, stu_id, sess)
@@ -83,7 +83,7 @@ def show_student(alias: str):
 def show_coach():
     st.title("Espace coach — Vue globale")
     st.write("V1: liste les dossiers élèves + sessions + PDFs.")
-    service = ds._client()
+    service = ds.get_drive_service()
     eleves_id = ds.ensure_folder(service, drive_root, "Eleves")
     students = [f for f in ds.list_children(eleves_id) if f["mimeType"]=="application/vnd.google-apps.folder"]
     students.sort(key=lambda x: x["name"])
@@ -109,6 +109,7 @@ def show_admin():
     session_dates=[]
     for uf in uploads:
         df = pd.read_csv(uf)
+        df.attrs["source_name"] = uf.name
         csv_dfs.append(df)
         raw_names.append(detect_player_name(df, uf.name))
         session_dates.append(session_date_from_csv(df))
@@ -127,13 +128,15 @@ def show_admin():
     st.write("Joueurs détectés → alias:")
     st.table(pd.DataFrame({"Nom détecté":raw_names, "Alias":aliases}))
 
+    # ...
+    
     if st.button("Générer Base + Models A→H", type="primary"):
         with tempfile.TemporaryDirectory() as td:
             out = generator.generate_all(csv_dfs, roster, session_date, td)
 
             # Upload to Drive
             paths = drive_paths_for_session(session_date)
-            service = ds._client()
+            service = ds.get_drive_service()
             base_id = ds.ensure_folder(service, drive_root, "Base")
 
             # Base upload (stable name + archive)
@@ -146,7 +149,7 @@ def show_admin():
                 ds.upload_bytes(up_id, uf.name, uf.getvalue(), "text/csv")
 
             # --- Upload PDFs: Students + Group (NEW) ---
-            service = ds._client()
+            service = ds.get_drive_service()
             eleves_id = ds.ensure_folder(service, drive_root, "Eleves")
             groupe_id = ds.ensure_folder(service, drive_root, "Groupe")
 

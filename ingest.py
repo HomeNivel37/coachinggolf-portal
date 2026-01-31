@@ -92,6 +92,28 @@ def _to_yyyy_mm_dd(value):
             except Exception:
                 pass
 
+    # French-style dates like: 'mercredi, 28 janv. 2026 (20:57)'
+    # We only care about the calendar date (dd mmm yyyy).
+    fr_months = {
+        'janv':1,'jan':1,'fevr':2,'févr':2,'fevrier':2,'février':2,
+        'mars':3,'avr':4,'avril':4,'mai':5,'juin':6,'juil':7,'juillet':7,
+        'aout':8,'août':8,'sept':9,'sep':9,'septembre':9,
+        'oct':10,'octobre':10,'nov':11,'novembre':11,'dec':12,'déc':12,'decembre':12,'décembre':12
+    }
+    m2 = re.search(r"(\d{1,2})\s+([A-Za-zÉéÀàÂâÊêÎîÔôÛûÇç\.]+)\s+(\d{4})", s)
+    if m2:
+        d = int(m2.group(1))
+        mon_raw = m2.group(2).lower().replace('.', '')
+        y = int(m2.group(3))
+        # normalize accents a bit
+        mon_raw = (mon_raw.replace('é','e').replace('è','e').replace('ê','e')
+                          .replace('à','a').replace('â','a').replace('î','i')
+                          .replace('ô','o').replace('û','u').replace('ç','c')
+                          .replace('ù','u').replace('ï','i').replace('ö','o').replace('ü','u'))
+        if mon_raw in fr_months:
+            mnum = fr_months[mon_raw]
+            return f"{y:04d}-{mnum:02d}-{d:02d}"
+
     return None
 
 # --- Public API -------------------------------------------------------------
@@ -152,6 +174,10 @@ def detect_player_name(df, filename: str | None = None):
 
     # fallback from filename
     if filename:
+        # common pattern: <Player>Shots_YYYY-MM-DD_HH-MM.csv
+        m = re.search(r"([A-Za-zÀ-ÿ]+)Shots", filename)
+        if m:
+            return m.group(1)
         base = filename.lower()
         for token in ["licornekeeper", "conre", "treve", "trêve", "sportsman", "cyberman"]:
             if token in base:
