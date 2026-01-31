@@ -12,6 +12,8 @@ from reportlab.pdfgen import canvas
 
 from models.modelA_gold import build_modelA_gold
 from models.modelB_gold import build_modelB_gold
+from models.modelC_gold import build_modelC_gold
+from models.modelD_gold import build_modelD_gold
 
 from ingest import detect_player_name
 from roster import to_alias, hand_of
@@ -317,9 +319,27 @@ def generate_all(csv_dfs: List[pd.DataFrame], roster: Dict[str, Any], session_da
                     _simple_pdf(str(p), f"Model {letter} — {alias}", lines)
                 student_pdfs[alias].append(str(p))
 
-        # Group docs
+# Group docs
         g_lines = [f"Session: {session_date}", f"Players: {', '.join(sorted(student_pdfs.keys()))}"]
-        for letter in ["C","D","F","G","H"]:
+
+        # Model C (GOLD) — comparatif joueurs (driver-only)
+        pC = work / f"ModelC_GROUPE_{ddmmyyyy}.pdf"
+        try:
+            build_modelC_gold(shots, roster=roster, session_date=session_date, out_pdf=str(pC))
+        except Exception as e:
+            _simple_pdf(str(pC), "Model C — GROUPE", g_lines + [f"ERREUR ModelC: {e}"])
+        group_pdfs.append(str(pC))
+
+        # Model D (GOLD) — synthèse coach groupe (driver-only)
+        pD = work / f"ModelD_GROUPE_{ddmmyyyy}.pdf"
+        try:
+            build_modelD_gold(shots, roster=roster, session_date=session_date, out_pdf=str(pD))
+        except Exception as e:
+            _simple_pdf(str(pD), "Model D — GROUPE", g_lines + [f"ERREUR ModelD: {e}"])
+        group_pdfs.append(str(pD))
+
+        # Other group placeholders
+        for letter in ["F","G","H"]:
             p = work / f"Model{letter}_GROUPE_{ddmmyyyy}.pdf"
             _simple_pdf(str(p), f"Model {letter} — GROUPE", g_lines)
             group_pdfs.append(str(p))
